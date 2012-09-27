@@ -11,11 +11,11 @@ function load_dict($mss, $filename) {
         if (!$line) {
             continue;
         }
-        list($kw, $type) = explode(":", $line, 2);
-        if ($type) {
-            mss_add($mss, $kw, $type);
+        $line = explode(":", $line, 2);
+        if (count($line) == 2) {
+            mss_add($mss, trim($line[0]), trim($line[1]));
         } else {
-            mss_add($mss, $kw);
+            mss_add($mss, trim($line[0]));
         }
     }
 }
