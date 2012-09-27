@@ -119,29 +119,48 @@ int le_mss, le_mss_persist;
 #define PHP_MSS_RES_NAME "MSS resource"
 
 typedef struct {
+    void *value;
+    void *next;
+} list_item_t;
+
+typedef struct {
     AC_AUTOMATA_t *ac;
     time_t timestamp;
     zend_bool persist;
+    list_item_t *head;
+    list_item_t *tail;
 } mss_t;
 
-static void mss_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
-    mss_t *mss = (mss_t *)rsrc->ptr;
-    if (mss) {
-        if (mss->ac) {
-            ac_automata_release(mss->ac);
-        }
-        efree(mss);
+static void mss_free(mss_t *mss TSRMLS_DC) {
+    if (!mss) {
+        return;
     }
+
+    if (mss->ac) {
+        ac_automata_release(mss->ac);
+    }
+
+    list_item_t *curr = mss->head;
+    while (curr) {
+        list_item_t *next = curr->next;
+        if (curr->value) {
+            pefree(curr->value, mss->persist);
+        }
+        pefree(curr, mss->persist);
+        curr = next;
+    }
+
+    pefree(mss, mss->persist);
+}
+
+static void mss_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {;
+    mss_t *mss = (mss_t *)rsrc->ptr;
+    mss_free(mss TSRMLS_CC);
 }
 
 static void mss_persist_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     mss_t *mss = (mss_t *)rsrc->ptr;
-    if (mss) {
-        if (mss->ac) {
-            ac_automata_release(mss->ac);
-        }
-        pefree(mss, 1);
-    }
+    mss_free(mss TSRMLS_CC);
 }
 
 static zend_function_entry mss_functions[] = {
@@ -206,7 +225,7 @@ PHP_FUNCTION(mss_create) {
             mss = le->ptr;
             struct timeval tv;
             gettimeofday(&tv, NULL);
-            if (expiry < 0 || tv.tv_sec - mss->timestamp <= expiry) {
+            if (expiry < 0 || tv.tv_sec - mss->timestamp < expiry) {
                 ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
                 return;
             };
@@ -214,10 +233,7 @@ PHP_FUNCTION(mss_create) {
     }
 
     if (mss) {
-        if (mss->ac) {
-            ac_automata_release(mss->ac);
-        }
-        pefree(mss, persist);
+        mss_free(mss);
     }
 
     mss = pemalloc(sizeof(mss_t), persist);
@@ -228,6 +244,11 @@ PHP_FUNCTION(mss_create) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     mss->timestamp = tv.tv_sec;
+
+    mss->head = pemalloc(sizeof(list_item_t), persist);
+    mss->head->value = NULL;
+    mss->head->next = NULL;
+    mss->tail = mss->head;
 
     if (persist) {
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
@@ -281,11 +302,25 @@ PHP_FUNCTION(mss_add) {
             le_mss_persist);
 
     AC_PATTERN_t pattern;
-    pattern.astring = pestrndup(kw, kw_len, mss->persist);
+    pattern.astring = pestrdup(kw, mss->persist);
     pattern.length = kw_len;
     pattern.rep.stringy = type
-            ? pestrndup(type, strlen(type), mss->persist)
+            ? pestrdup(type, mss->persist)
             : NULL;
+
+    list_item_t *item = pemalloc(sizeof(list_item_t), mss->persist);
+    item->value = pattern.astring;
+    item->next = NULL;
+    mss->tail->next = item;
+    mss->tail = item;
+
+    if (pattern.rep.stringy) {
+        item = pemalloc(sizeof(list_item_t), mss->persist);
+        item->value = pattern.rep.stringy;
+        item->next = NULL;
+        mss->tail->next = item;
+        mss->tail = item;
+    }
 
     ac_automata_add(mss->ac, &pattern);
 
