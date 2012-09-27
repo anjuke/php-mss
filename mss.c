@@ -165,6 +165,7 @@ static void mss_persist_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
 
 static zend_function_entry mss_functions[] = {
     PHP_FE(mss_create, NULL)
+    PHP_FE(mss_timestamp, NULL)
     PHP_FE(mss_is_ready, NULL)
     PHP_FE(mss_add, NULL)
     PHP_FE(mss_search, NULL)
@@ -233,7 +234,7 @@ PHP_FUNCTION(mss_create) {
     }
 
     if (mss) {
-        mss_free(mss);
+        mss_free(mss TSRMLS_CC);
     }
 
     mss = pemalloc(sizeof(mss_t), persist);
@@ -260,6 +261,21 @@ PHP_FUNCTION(mss_create) {
     } else {
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss);
     }
+}
+
+PHP_FUNCTION(mss_timestamp) {
+    mss_t *mss;
+    zval *zmss;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zmss)
+            == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
+            le_mss_persist);
+
+    RETURN_LONG(mss->timestamp);
 }
 
 PHP_FUNCTION(mss_is_ready) {
