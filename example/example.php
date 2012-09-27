@@ -21,13 +21,13 @@ function load_dict($mss, $filename) {
 }
 
 
-$mss = mss_create("sample", 60);
+$mss = mss_create("example", 60);
 
 if (!mss_is_ready($mss)) {
-    load_dict($mss, "sample.dic");
+    load_dict($mss, "example.dic");
 }
 
-$text = file_get_contents("sample.txt");
+$text = file_get_contents("example.txt");
 
 //
 //
