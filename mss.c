@@ -28,13 +28,9 @@ typedef struct {
 
 static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
         TSRMLS_DC) {
-    static zval *invoke;
     zval *retval;
-
-    if (!invoke) {
-        ALLOC_INIT_ZVAL(invoke);
-        ZVAL_STRING(invoke, "__invoke", 8);
-    }
+    zval invoke;
+    ZVAL_STRING(&invoke, "__invoke", 8);
 
     zval **args[4];
     int argv;
@@ -69,7 +65,7 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
         args[1] = &idx;
         args[2] = &type;
 
-        if (call_user_function_ex(NULL, &(ucp->callback), invoke, &retval,
+        if (call_user_function_ex(NULL, &(ucp->callback), &invoke, &retval,
                 argv, args, 0, NULL TSRMLS_CC) != SUCCESS) {
             zend_error(E_ERROR, "invoke callback failed");
         }
@@ -285,9 +281,11 @@ PHP_FUNCTION(mss_add) {
             le_mss_persist);
 
     AC_PATTERN_t pattern;
-    pattern.astring = estrndup(kw, kw_len);
+    pattern.astring = pestrndup(kw, kw_len, mss->persist);
     pattern.length = kw_len;
-    pattern.rep.stringy = type ? estrndup(type, strlen(type)) : NULL;
+    pattern.rep.stringy = type
+            ? pestrndup(type, strlen(type), mss->persist)
+            : NULL;
 
     ac_automata_add(mss->ac, &pattern);
 
@@ -313,10 +311,10 @@ PHP_FUNCTION(mss_search) {
         ac_automata_finalize(mss->ac);
     }
 
-    AC_AUTOMATA_t *rac = emalloc(sizeof(AC_AUTOMATA_t));
-    memcpy(rac, mss->ac, sizeof(AC_AUTOMATA_t));
+    AC_AUTOMATA_t ac;
+    memcpy(&ac, mss->ac, sizeof(AC_AUTOMATA_t));
 
-    ac_automata_reset(rac);
+    ac_automata_reset(&ac);
 
     match_callback_param_t mcp;
 
@@ -334,9 +332,7 @@ PHP_FUNCTION(mss_search) {
         mcp.value = matches;
     }
 
-    ac_automata_search(rac, &text, &mcp);
-
-    efree(rac);
+    ac_automata_search(&ac, &text, &mcp);
 }
 
 PHP_FUNCTION(mss_match) {
