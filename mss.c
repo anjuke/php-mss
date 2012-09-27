@@ -4,10 +4,10 @@
 
 #include <sys/time.h>
 
-#include "php.h"
-#include "php_ini.h"
-#include "php_mss.h"
+#include <php.h>
+#include <php_ini.h>
 
+#include "php_mss.h"
 #include "ahocorasick.h"
 
 //
@@ -148,7 +148,7 @@ static void mss_persist_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     }
 }
 
-static function_entry mss_functions[] = {
+static zend_function_entry mss_functions[] = {
     PHP_FE(mss_create, NULL)
     PHP_FE(mss_is_ready, NULL)
     PHP_FE(mss_add, NULL)
@@ -204,7 +204,7 @@ PHP_FUNCTION(mss_create) {
     persist = name ? 1 : 0;
 
     if (persist) {
-        list_entry *le;
+        zend_rsrc_list_entry *le;
         if (zend_hash_find(&EG(persistent_list), name, name_len + 1,
                 (void **)&le) == SUCCESS) {
             mss = le->ptr;
@@ -235,11 +235,11 @@ PHP_FUNCTION(mss_create) {
 
     if (persist) {
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
-        list_entry new_le;
+        zend_rsrc_list_entry new_le;
         new_le.ptr = mss;
         new_le.type = le_mss_persist;
         zend_hash_add(&EG(persistent_list), name, name_len + 1, &new_le,
-                sizeof(list_entry), NULL);
+                sizeof(zend_rsrc_list_entry), NULL);
     } else {
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss);
     }
