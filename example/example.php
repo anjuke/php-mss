@@ -1,4 +1,5 @@
 <?php
+header("content-type: text/plain; charset=utf-8");
 
 function load_dict($mss, $filename) {
     $fp = fopen($filename, "r");
@@ -21,13 +22,27 @@ function load_dict($mss, $filename) {
 }
 
 
-$mss = mss_create("example", 60);
-
-if (!mss_is_ready($mss)) {
+$mss = mss_create("example");
+$timestamp = mss_timestamp($mss);
+$is_ready = mss_is_ready($mss);
+if ($is_ready) {
+    $stat = stat("example.dic");
+    if ($stat['mtime'] > $timestamp) {
+        mss_destroy($mss);
+        $mss = mss_create("example");
+        $timestamp = mss_timestamp($mss);
+    }
+}
+if (!$is_ready) {
+    echo "Load dict\n";
     load_dict($mss, "example.dic");
 }
 
 $text = file_get_contents("example.txt");
+
+//
+//
+echo "mss_creation: " . date("Y-m-d H:i:s", $timestamp) . "\n";
 
 //
 //
