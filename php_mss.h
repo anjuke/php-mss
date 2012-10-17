@@ -6,6 +6,7 @@
 
 PHP_MINIT_FUNCTION(mss);
 PHP_FUNCTION(mss_create);
+PHP_FUNCTION(mss_destroy);
 PHP_FUNCTION(mss_timestamp);
 PHP_FUNCTION(mss_is_ready);
 PHP_FUNCTION(mss_add);

@@ -125,8 +125,11 @@ typedef struct {
 
 typedef struct {
     AC_AUTOMATA_t *ac;
+    union {
+        char *name;
+        int persist;
+    };
     time_t timestamp;
-    zend_bool persist;
     list_item_t *head;
     list_item_t *tail;
 } mss_t;
@@ -138,6 +141,10 @@ static void mss_free(mss_t *mss TSRMLS_DC) {
 
     if (mss->ac) {
         ac_automata_release(mss->ac);
+    }
+
+    if (mss->name) {
+        pefree(mss->name, mss->persist);
     }
 
     list_item_t *curr = mss->head;
@@ -153,7 +160,7 @@ static void mss_free(mss_t *mss TSRMLS_DC) {
     pefree(mss, mss->persist);
 }
 
-static void mss_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {;
+static void mss_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     mss_t *mss = (mss_t *)rsrc->ptr;
     mss_free(mss TSRMLS_CC);
 }
@@ -165,6 +172,7 @@ static void mss_persist_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
 
 static zend_function_entry mss_functions[] = {
     PHP_FE(mss_create, NULL)
+    PHP_FE(mss_destroy, NULL)
     PHP_FE(mss_timestamp, NULL)
     PHP_FE(mss_is_ready, NULL)
     PHP_FE(mss_add, NULL)
@@ -229,18 +237,14 @@ PHP_FUNCTION(mss_create) {
             if (expiry < 0 || tv.tv_sec - mss->timestamp < expiry) {
                 ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
                 return;
-            };
+            }
+            zend_hash_del(&EG(persistent_list), name, name_len + 1);
         }
-    }
-
-    if (mss) {
-        mss_free(mss TSRMLS_CC);
     }
 
     mss = pemalloc(sizeof(mss_t), persist);
 
     mss->ac = ac_automata_init(match_callback);
-    mss->persist = persist;
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -252,6 +256,7 @@ PHP_FUNCTION(mss_create) {
     mss->tail = mss->head;
 
     if (persist) {
+        mss->name = pestrndup(name, name_len + 1, persist);
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
         zend_rsrc_list_entry new_le;
         new_le.ptr = mss;
@@ -259,8 +264,28 @@ PHP_FUNCTION(mss_create) {
         zend_hash_add(&EG(persistent_list), name, name_len + 1, &new_le,
                 sizeof(zend_rsrc_list_entry), NULL);
     } else {
+        mss->name = NULL;
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss);
     }
+}
+
+PHP_FUNCTION(mss_destroy) {
+    mss_t *mss;
+    zval *zmss;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zmss)
+            == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
+            le_mss_persist);
+
+    if (mss && mss->persist) {
+        zend_hash_del(&EG(persistent_list), mss->name, strlen(mss->name) + 1);
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
 }
 
 PHP_FUNCTION(mss_timestamp) {
