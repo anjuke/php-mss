@@ -31,6 +31,7 @@ if ($is_ready) {
         mss_destroy($mss);
         $mss = mss_create("example");
         $timestamp = mss_timestamp($mss);
+        $is_ready = mss_is_ready($mss);
     }
 }
 if (!$is_ready) {
@@ -46,7 +47,7 @@ echo "mss_creation: " . date("Y-m-d H:i:s", $timestamp) . "\n";
 
 //
 //
-echo "mms_match(): \n";
+echo "mms_match(): original text\n";
 $ret = mss_match($mss, $text);
 echo "    ", ($ret ? "matched" : "not matched"), "\n";
 echo "\n";
@@ -73,7 +74,8 @@ echo "\n";
 
 //
 //
-echo "mms_match(): \n";
+echo "mms_match(): modified text\n";
 $ret = mss_match($mss, $text);
 echo "    ", ($ret ? "matched" : "not matched"), "\n";
 echo "\n";
+
