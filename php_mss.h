@@ -17,7 +17,7 @@
 #ifndef PHP_MSS_H
 #define PHP_MSS_H 1
 
-#define PHP_MSS_VERSION "0.1"
+#define PHP_MSS_VERSION "1.0"
 #define PHP_MSS_EXTNAME "mss"
 
 PHP_MINIT_FUNCTION(mss);
