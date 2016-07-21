@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+// https://github.com/SICOM/rlib/blob/678a64ef4cab7139d0a0dda1da89e0ae398e9f09/bindings/php/php.c
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -45,13 +46,14 @@ typedef struct {
 static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
         TSRMLS_DC) {
     zval *retval;
+    zval value;
     zval invoke;
-    ZVAL_STRING(&invoke, "__invoke", 8);
+    ZVAL_STRING(&invoke, "__invoke");
 
-    zval **args[4];
+    zval args[4];
     int argv;
     if (ucp->ext) {
-        args[3] = &(ucp->ext);
+        args[3] = *(ucp->ext);
         argv = 4;
     } else {
         argv = 3;
@@ -69,26 +71,27 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
         ALLOC_INIT_ZVAL(idx);
         ALLOC_INIT_ZVAL(type);
 
-        ZVAL_STRING(kw, pattern->astring, pattern->length);
+        ZVAL_STRING(kw, pattern->astring);
         ZVAL_LONG(idx, m->position - pattern->length);
         if (pattern->rep.stringy) {
-            ZVAL_STRING(type, pattern->rep.stringy, strlen(pattern->rep.stringy));
+            ZVAL_STRING(type, pattern->rep.stringy);
         } else {
             ZVAL_NULL(type);
         }
 
-        args[0] = &kw;
-        args[1] = &idx;
-        args[2] = &type;
+        args[0] = *kw;
+        args[1] = *idx;
+        args[2] = *type;
 
-        if (call_user_function_ex(NULL, &(ucp->callback), &invoke, &retval,
+        retval = &value;
+        if (call_user_function_ex(NULL, ucp->callback, &invoke, &value,
                 argv, args, 0, NULL TSRMLS_CC) != SUCCESS) {
             zend_error(E_ERROR, "invoke callback failed");
         }
 
-        zval_ptr_dtor(&type);
-        zval_ptr_dtor(&idx);
-        zval_ptr_dtor(&kw);
+        zval_ptr_dtor(type);
+        zval_ptr_dtor(idx);
+        zval_ptr_dtor(kw);
 
         if (Z_LVAL_P(retval)) {
             return 1;
@@ -118,10 +121,10 @@ static int match_callback(AC_MATCH_t *m, void *param TSRMLS_DC) {
         zval *match;
         ALLOC_INIT_ZVAL(match);
         array_init(match);
-        add_index_string(match, 0, pattern->astring, 1);
+        add_index_string(match, 0, pattern->astring);
         add_index_long(match, 1, m->position - pattern->length);
         if (pattern->rep.stringy) {
-            add_index_string(match, 2, pattern->rep.stringy, 1);
+            add_index_string(match, 2, pattern->rep.stringy);
         }
         add_next_index_zval(matches, match);
     }
@@ -176,12 +179,12 @@ static void mss_free(mss_t *mss TSRMLS_DC) {
     pefree(mss, mss->persist);
 }
 
-static void mss_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
+static void mss_dtor(zend_resource *rsrc TSRMLS_DC) {
     mss_t *mss = (mss_t *)rsrc->ptr;
     mss_free(mss TSRMLS_CC);
 }
 
-static void mss_persist_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
+static void mss_persist_dtor(zend_resource *rsrc TSRMLS_DC) {
     mss_t *mss = (mss_t *)rsrc->ptr;
     mss_free(mss TSRMLS_CC);
 }
@@ -244,9 +247,12 @@ PHP_FUNCTION(mss_create) {
     persist = name ? 1 : 0;
 
     if (persist) {
-        zend_rsrc_list_entry *le;
-        if (zend_hash_find(&EG(persistent_list), name, name_len + 1,
-                (void **)&le) == SUCCESS) {
+        zend_resource *le;
+        zval *value = zend_hash_str_find(&EG(persistent_list), name, name_len + 1);
+
+        if (value) {
+            *le = *Z_RES_P(value);
+
             mss = le->ptr;
             struct timeval tv;
             gettimeofday(&tv, NULL);
@@ -254,7 +260,7 @@ PHP_FUNCTION(mss_create) {
                 ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
                 return;
             }
-            zend_hash_del(&EG(persistent_list), name, name_len + 1);
+            zend_hash_str_del(&EG(persistent_list), name, name_len + 1);
         }
     }
 
@@ -274,11 +280,10 @@ PHP_FUNCTION(mss_create) {
     if (persist) {
         mss->name = pestrndup(name, name_len + 1, persist);
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
-        zend_rsrc_list_entry new_le;
+        zend_resource new_le;
         new_le.ptr = mss;
         new_le.type = le_mss_persist;
-        zend_hash_add(&EG(persistent_list), name, name_len + 1, &new_le,
-                sizeof(zend_rsrc_list_entry), NULL);
+        zend_hash_str_add(&EG(persistent_list), name, name_len + 1, &new_le);
     } else {
         mss->name = NULL;
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss);
@@ -294,7 +299,7 @@ PHP_FUNCTION(mss_destroy) {
         RETURN_FALSE;
     }
 
-    ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
+    zend_fetch_resource2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
 
     if (mss && mss->persist) {
