@@ -48,7 +48,11 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
     zval *retval;
     zval value;
     zval invoke;
+#if PHP_MAJOR_VERSION < 7
+    ZVAL_STRING(&invoke, "__invoke", 8);
+#else
     ZVAL_STRING(&invoke, "__invoke");
+#endif
 
     zval args[4];
     int argv;
@@ -71,7 +75,11 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp
         ALLOC_INIT_ZVAL(idx);
         ALLOC_INIT_ZVAL(type);
 
+#if PHP_MAJOR_VERSION < 7
+        ZVAL_STRING(kw, pattern->astring, pattern->length);
+#else
         ZVAL_STRING(kw, pattern->astring);
+#endif
         ZVAL_LONG(idx, m->position - pattern->length);
         if (pattern->rep.stringy) {
             ZVAL_STRING(type, pattern->rep.stringy);
@@ -257,7 +265,11 @@ PHP_FUNCTION(mss_create) {
             struct timeval tv;
             gettimeofday(&tv, NULL);
             if (expiry < 0 || tv.tv_sec - mss->timestamp < expiry) {
+//#if PHP_MAJOR_VERSION < 7
                 ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
+//#else
+//                RETURN_RES(zend_register_resource(mss, (persist?le_mss_persist:le_mss)));
+//#endif
                 return;
             }
             zend_hash_str_del(&EG(persistent_list), name, name_len + 1);
@@ -279,14 +291,22 @@ PHP_FUNCTION(mss_create) {
 
     if (persist) {
         mss->name = pestrndup(name, name_len + 1, persist);
-        ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
+//#if PHP_MAJOR_VERSION < 7
+                ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
+//#else
+//                (zend_register_resource(mss, (persist?le_mss_persist:le_mss)));
+//#endif
         zend_resource new_le;
         new_le.ptr = mss;
         new_le.type = le_mss_persist;
         zend_hash_str_add(&EG(persistent_list), name, name_len + 1, &new_le);
     } else {
         mss->name = NULL;
-        ZEND_REGISTER_RESOURCE(return_value, mss, le_mss);
+//#if PHP_MAJOR_VERSION < 7
+                ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
+//#else
+//                RETURN_RES(zend_register_resource(mss, (persist?le_mss_persist:le_mss)));
+//#endif
     }
 }
 
@@ -299,11 +319,23 @@ PHP_FUNCTION(mss_destroy) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     zend_fetch_resource2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     if (mss && mss->persist) {
+#if PHP_MAJOR_VERSION < 7
         zend_hash_del(&EG(persistent_list), mss->name, strlen(mss->name) + 1);
+#else
+        zend_hash_del(&EG(persistent_list), mss->name);
+#endif
+        //zend_list_close(Z_RES_P(zmss));
         RETURN_TRUE;
     }
     RETURN_FALSE;
@@ -318,8 +350,15 @@ PHP_FUNCTION(mss_timestamp) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     RETURN_LONG(mss->timestamp);
 }
@@ -333,8 +372,15 @@ PHP_FUNCTION(mss_is_ready) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     RETURN_BOOL(!mss->ac->automata_open)
 }
@@ -360,8 +406,15 @@ PHP_FUNCTION(mss_add) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     AC_PATTERN_t pattern;
     pattern.astring = pestrdup(kw, mss->persist);
@@ -401,8 +454,15 @@ PHP_FUNCTION(mss_search) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     if (mss->ac->automata_open) {
         ac_automata_finalize(mss->ac);
@@ -442,8 +502,15 @@ PHP_FUNCTION(mss_match) {
         RETURN_FALSE;
     }
 
+#if PHP_MAJOR_VERSION < 7
     ZEND_FETCH_RESOURCE2(mss, mss_t*, &zmss, -1, PHP_MSS_RES_NAME, le_mss,
             le_mss_persist);
+#else
+    if((mss = (mss_t *)zend_fetch_resource2(Z_RES_P(zmss), PHP_MSS_RES_NAME, le_mss, le_mss_persist)) == NULL)
+    {
+        RETURN_FALSE;
+    }
+#endif
 
     if (mss->ac->automata_open) {
         ac_automata_finalize(mss->ac);
