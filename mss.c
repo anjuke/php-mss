@@ -66,7 +66,7 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp TSRM
 #else
         args[3] = *(ucp->ext);  //$ext => function(.....,$p4){}
 #endif
-        argv = 4;  //只是简单的将$ext参数送给闭包第4个参数位，并未做其他应用
+        argv = 4;  //
     } else {
         argv = 3;  //function($p1,$p2,$p3){}
     }
