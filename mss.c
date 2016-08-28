@@ -392,22 +392,21 @@ PHP_FUNCTION(mss_create) {
         ZEND_REGISTER_RESOURCE(return_value, mss, le_mss_persist);
 #else
         zend_resource* new_le = zend_register_resource(mss, le_mss_persist);
+        RETVAL_RES(new_le);
 #endif
 #if PHP_MAJOR_VERSION < 7
         zend_rsrc_list_entry new_le;
         new_le.ptr = mss;
         new_le.type = le_mss_persist;
 #else
-//        zend_resource new_le;
+        new_le->ptr = mss;
+        new_le->type = le_mss_persist;
 #endif
 #if PHP_MAJOR_VERSION < 7
         zend_hash_add(&EG(persistent_list), name, name_len + 1, &new_le,
                 sizeof(zend_rsrc_list_entry), NULL);
 #else
-        //zend_hash_add(&EG(persistent_list), name, &new_le);
-        //zend_hash_update_mem(&EG(persistent_list), name, (void *)&new_le, sizeof(zend_resource));
-        zend_hash_str_add(&EG(persistent_list), name, name_len + 1, (void *)&new_le);
-        RETURN_RES(new_le);
+        zend_hash_str_update_mem(&EG(persistent_list), name, name_len + 1, new_le, sizeof(zend_resource));
 #endif
     } else {
         mss->name = NULL;
@@ -417,6 +416,7 @@ PHP_FUNCTION(mss_create) {
         RETURN_RES(zend_register_resource(mss, le_mss));
 #endif
     }
+
 }
 
 PHP_FUNCTION(mss_destroy) {
@@ -447,7 +447,6 @@ PHP_FUNCTION(mss_destroy) {
 #if PHP_MAJOR_VERSION < 7
         zend_hash_del(&EG(persistent_list), mss->name, strlen(mss->name) + 1);
 #else
-//        zend_hash_del(&EG(persistent_list), STR_INIT("Hello", sizeof("Hello")-1, 0));
         zend_hash_str_del(&EG(persistent_list), mss->name, strlen(mss->name) + 1);
 #endif
         RETURN_TRUE;
@@ -627,14 +626,14 @@ PHP_FUNCTION(mss_search) {
         ucp.ext = ext;
         mcp.type = MCP_TYPE_CLOSURE;
         mcp.value = &ucp;
-//xxx
+
 #if PHP_MAJOR_VERSION < 7
-         RETVAL_TRUE;
+        RETVAL_TRUE;
 #else
         ac_automata_search(&ac, &text, &mcp);
-        RETURN_TRUE;//立即返回，否则段错误
+        RETURN_TRUE;//立即返回否则段错误
 #endif
-        RETVAL_TRUE;
+
     } else {
         zval *matches = return_value;
         array_init(matches);
