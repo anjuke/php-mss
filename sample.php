@@ -36,7 +36,7 @@ echo "    ", "count: ", $count, "\n";
 echo $text, "\n";
 
 
-mss_search($mss, $text, function($kw, $idx, $type, $ext) {
+mss_search($mss, $text, function($kw, $idx, $type) {
     echo "  ($kw, $idx, $type)\n";
 });
 
