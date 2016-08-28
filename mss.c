@@ -42,10 +42,13 @@ typedef struct {
     zval *ext;
 } user_callback_param_t;
 
-//xxx
 static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp TSRMLS_DC) {
     zval invoke;
+#if PHP_MAJOR_VERSION < 7
     zval *retval;
+#else
+    zval retval;
+#endif
 //Closure::__invoke()
 #if PHP_MAJOR_VERSION < 7
     ZVAL_STRING(&invoke, "__invoke", 8);
@@ -66,11 +69,10 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp TSRM
 #else
         args[3] = *(ucp->ext);  //$ext => function(.....,$p4){}
 #endif
-        argv = 4;  //
+        argv = 4;
     } else {
         argv = 3;  //function($p1,$p2,$p3){}
     }
-//return 0;
 
     int i;
     for (i=0; i < m->match_num; i++) {
@@ -116,12 +118,13 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp TSRM
         args[2] = *type;
 #endif
 
+        int call_result;
 #if PHP_MAJOR_VERSION < 7
         if (call_user_function_ex(NULL, &(ucp->callback), &invoke, &retval,
                 argv, args, 0, NULL TSRMLS_CC) != SUCCESS) {
 #else
-        if (call_user_function_ex(NULL, ucp->callback, &invoke, &retval,
-                argv, args, 0, NULL TSRMLS_CC) != SUCCESS) {
+        if ((call_result = call_user_function_ex(NULL, ucp->callback, &invoke, &retval,
+                argv, args, 0, NULL TSRMLS_CC)) != SUCCESS) {
 #endif
             zend_error(E_ERROR, "invoke callback failed");
         }
@@ -136,10 +139,17 @@ static int match_callback_closure(AC_MATCH_t *m, user_callback_param_t *ucp TSRM
         zval_ptr_dtor(kw);
 #endif
 
+#if PHP_MAJOR_VERSION < 7
         if (Z_LVAL_P(retval)) {
+#else
+        if (call_result == SUCCESS && Z_TYPE(retval) != IS_UNDEF && zval_is_true(&retval)) {
+#endif
             return 1;
         }
-
+#if PHP_MAJOR_VERSION < 7
+#else
+        zval_ptr_dtor(&retval);
+#endif
     }
 
     return 0;
@@ -618,8 +628,12 @@ PHP_FUNCTION(mss_search) {
         mcp.type = MCP_TYPE_CLOSURE;
         mcp.value = &ucp;
 //xxx
-zval xxx;
-ZVAL_STRING(&xxx, "xxx");
+#if PHP_MAJOR_VERSION < 7
+         RETVAL_TRUE;
+#else
+        ac_automata_search(&ac, &text, &mcp);
+        RETURN_TRUE;//立即返回，否则段错误
+#endif
         RETVAL_TRUE;
     } else {
         zval *matches = return_value;
