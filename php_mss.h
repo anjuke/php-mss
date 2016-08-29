@@ -25,6 +25,7 @@ PHP_FUNCTION(mss_create);
 PHP_FUNCTION(mss_destroy);
 PHP_FUNCTION(mss_timestamp);
 PHP_FUNCTION(mss_is_ready);
+PHP_FUNCTION(mss_display);
 PHP_FUNCTION(mss_add);
 PHP_FUNCTION(mss_search);
 PHP_FUNCTION(mss_match);
