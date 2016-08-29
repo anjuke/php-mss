@@ -1,7 +1,7 @@
 <?php
 // header("content-type: text/plain; charset=utf-8");
 
-$mss = mss_create("all");
+$mss = mss_create("all", 10);
 
 
 var_dump(mss_add($mss, "安居客", "公司名称"));
