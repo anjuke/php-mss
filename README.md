@@ -96,6 +96,7 @@ C library of Aho-Corasick Algorithm by [multifast][2] (LGPLv3).
 
   [1]: https://gist.github.com/1399772
   [2]: http://sourceforge.net/projects/multifast/
-  [3]: http://php.net/manual/en/functions.anonymous.php
-  [4]: http://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_string_matching_algorithm
+  [3]: http://multifast.sourceforge.net/library.php
+  [4]: http://php.net/manual/en/functions.anonymous.php
+  [5]: http://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_string_matching_algorithm
 
